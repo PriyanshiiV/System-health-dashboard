@@ -69,6 +69,27 @@ pipeline {
                 }
             }
         }
+      
+       stage('Deploy') {
+    steps {
+        echo 'Deploying application...'
+
+        sh '''
+            docker stop system-health-dashboard || true
+            docker rm system-health-dashboard || true
+
+            docker run -d \
+                --name system-health-dashboard \
+                -p 5000:5000 \
+                system-health-dashboard:1.0.0
+
+            sleep 5
+
+            curl -f http://localhost:5000/health
+        '''
+    }
+}   
+
     }
 
     post {

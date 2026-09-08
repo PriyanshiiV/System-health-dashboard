@@ -1,104 +1,77 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = 'system-health-dashboard'
+        CONTAINER_NAME = "health-check-${BUILD_NUMBER}"
+    }
+
     stages {
 
         stage('Checkout') {
             steps {
                 echo 'Checking out project...'
-
-                git branch: 'develop',
-                    url: 'https://github.com/PriyanshiiV/System-health-dashboard.git'
+                // your existing checkout code
             }
         }
 
-        stage('Unit Tests') {
+        stage('Install') {
             steps {
-                echo 'Running unit tests...'
-
+                echo 'Installing dependencies...'
                 sh '''
-                    python3 -m pytest tests/test_app.py -v
+                    pip3 install -r requirements.txt
+                    pip3 install pytest
                 '''
             }
         }
 
-        stage('Integration Tests') {
+        stage('Test') {
             steps {
-                echo 'Running integration tests...'
-
+                echo 'Running tests...'
                 sh '''
-                    python3 -m pytest tests/test_app.py -v
+                    pytest -v
                 '''
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build') {
             steps {
                 echo 'Building Docker image...'
-
                 sh '''
-                    docker build -t system-health-dashboard:1.0.0 .
+                    docker build -t ${IMAGE_NAME}:latest .
                 '''
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Tag') {
             steps {
-                echo 'Pushing Docker image to Docker Hub...'
-
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )
-                ]) {
-                    sh '''
-                        echo "$DOCKER_PASSWORD" | docker login \
-                            -u "$DOCKER_USERNAME" \
-                            --password-stdin
-
-                        docker tag system-health-dashboard:1.0.0 \
-                            "$DOCKER_USERNAME/system-health-dashboard:1.0.0"
-
-                        docker push \
-                            "$DOCKER_USERNAME/system-health-dashboard:1.0.0"
-
-                        docker logout
-                    '''
-                }
+                echo "Tagging image with build number ${BUILD_NUMBER}"
+                sh '''
+                    docker tag ${IMAGE_NAME}:latest ${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
             }
         }
-      
-       stage('Deploy') {
-    steps {
-        echo 'Deploying application...'
 
-        sh '''
-            docker stop system-health-dashboard || true
-            docker rm system-health-dashboard || true
+        stage('Health check') {
+            steps {
+                echo 'Checking application health...'
+                sh '''
+                    docker rm -f ${CONTAINER_NAME} 2>/dev/null || true
 
-            docker run -d \
-                --name system-health-dashboard \
-                -p 5000:5000 \
-                system-health-dashboard:1.0.0
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p 5000:5000 \
+                        ${IMAGE_NAME}:${BUILD_NUMBER}
 
-            sleep 5
+                    sleep 5
 
-            curl -f http://localhost:5000/health
-        '''
-    }
-}   
+                    curl --fail http://localhost:5000/health
 
-    }
-
-    post {
-        success {
-            echo 'Pipeline completed successfully!'
+                    docker rm -f ${CONTAINER_NAME}
+                '''
+            }
         }
 
-        failure {
-            echo 'Pipeline failed. Check the stage logs for details.'
-        }
+        // Keep your existing Push to Docker Hub stage here
     }
 }

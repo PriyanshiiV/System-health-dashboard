@@ -8,5 +8,4 @@ A small API providing health, version and environment information.
 2. /version
 3. /environment
 
-#### API testing is handled through endpoint validation and automated tests.
 

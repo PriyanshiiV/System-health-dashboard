@@ -1,4 +1,3 @@
-# System Health Dashboard API
 
 A small Flask API that reports application health, version, and environment. Built as a Git and DevOps mini project to demonstrate automated testing, Docker containerisation, and a Jenkins CI pipeline.
 

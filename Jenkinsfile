@@ -47,25 +47,25 @@ pipeline {
         }
 
         stage('Health Check') {
-            steps {
-                echo 'Running application health check...'
-                sh '''
-                    docker rm -f system-health-check || true
+    steps {
+        echo 'Running application health check...'
+        sh '''
+            docker rm -f system-health-check || true
 
-                    docker run -d \
-                        --name system-health-check \
-                        -p 5001:5000 \
-                        -e APP_ENV=production \
-                        system-health-dashboard:${BUILD_NUMBER}
+            docker run -d \
+                --name system-health-check \
+                -e APP_ENV=production \
+                system-health-dashboard:${BUILD_NUMBER}
 
-                    sleep 5
+            sleep 5
 
-                    curl --fail http://localhost:5001/health
+            docker exec system-health-check \
+                python3 -c "import urllib.request; response=urllib.request.urlopen('http://localhost:5000/health'); print(response.read().decode()); exit(0 if response.status == 200 else 1)"
 
-                    docker rm -f system-health-check
-                '''
-            }
-        }
+            docker rm -f system-health-check
+        '''
+    }
+}
     }
 
     post {

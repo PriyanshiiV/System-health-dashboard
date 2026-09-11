@@ -19,8 +19,9 @@ pipeline {
             steps {
                 echo 'Installing dependencies...'
                 sh '''
-                    pip3 install -r requirements.txt
-                    pip3 install pytest
+                    sh '''
+                   python3 -m pip install --break-system-packages -r requirements.txt
+'''
                 '''
             }
         }

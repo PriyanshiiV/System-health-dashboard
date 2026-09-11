@@ -1,36 +1,30 @@
+```groovy
 pipeline {
     agent any
-
-    environment {
-        IMAGE_NAME = 'system-health-dashboard'
-        CONTAINER_NAME = "health-check-${BUILD_NUMBER}"
-    }
 
     stages {
 
         stage('Checkout') {
             steps {
-                echo 'Checking out project...'
-                // your existing checkout code
+                echo 'Checking out source code...'
+                checkout scm
             }
         }
 
         stage('Install') {
             steps {
-                echo 'Installing dependencies...'
+                echo 'Installing Python dependencies...'
                 sh '''
-                    sh '''
-                   python3 -m pip install --break-system-packages -r requirements.txt
-'''
+                    python3 -m pip install --break-system-packages -r requirements.txt
                 '''
             }
         }
 
         stage('Test') {
             steps {
-                echo 'Running tests...'
+                echo 'Running automated tests...'
                 sh '''
-                    pytest -v
+                    python3 -m pytest -v
                 '''
             }
         }
@@ -39,40 +33,54 @@ pipeline {
             steps {
                 echo 'Building Docker image...'
                 sh '''
-                    docker build -t ${IMAGE_NAME}:latest .
+                    docker build -t system-health-dashboard:local .
                 '''
             }
         }
 
         stage('Tag') {
             steps {
-                echo "Tagging image with build number ${BUILD_NUMBER}"
+                echo "Tagging image with Jenkins build number: ${BUILD_NUMBER}"
                 sh '''
-                    docker tag ${IMAGE_NAME}:latest ${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker tag system-health-dashboard:local system-health-dashboard:${BUILD_NUMBER}
                 '''
             }
         }
 
-        stage('Health check') {
+        stage('Health Check') {
             steps {
-                echo 'Checking application health...'
+                echo 'Running application health check...'
                 sh '''
-                    docker rm -f ${CONTAINER_NAME} 2>/dev/null || true
+                    docker rm -f system-health-check || true
 
                     docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        -p 5000:5000 \
-                        ${IMAGE_NAME}:${BUILD_NUMBER}
+                        --name system-health-check \
+                        -p 5001:5000 \
+                        -e APP_ENV=production \
+                        system-health-dashboard:${BUILD_NUMBER}
 
                     sleep 5
 
-                    curl --fail http://localhost:5000/health
+                    curl --fail http://localhost:5001/health
 
-                    docker rm -f ${CONTAINER_NAME}
+                    docker rm -f system-health-check
                 '''
             }
         }
+    }
 
-        // Keep your existing Push to Docker Hub stage here
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+
+        failure {
+            echo 'Pipeline failed. Check the console output.'
+        }
+
+        always {
+            echo "Jenkins build number: ${BUILD_NUMBER}"
+        }
     }
 }
+```
